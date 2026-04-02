@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Scoring Leaderboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            padding: 2rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #1a1a2e;
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .controls button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .controls button:hover { background: #c0392b; }
+        table {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+        th {
+            background: #1a1a2e;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th:hover { background: #16213e; }
+        th .sort-arrow { margin-left: 0.3rem; font-size: 0.7rem; }
+        tr:nth-child(even) { background: #f8f9fa; }
+        tr:hover { background: #e8f0fe; }
+        td { border-bottom: 1px solid #eee; }
+        .empty-msg {
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+            font-style: italic;
+        }
+        .refresh-note {
+            text-align: center;
+            margin-top: 1rem;
+            color: #888;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>Resume Scoring Leaderboard</h1>
+    <div class="controls">
+        <button onclick="resetLeaderboard()">Reset Leaderboard</button>
+    </div>
+    <table id="leaderboard">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Team Name <span class="sort-arrow" id="arrow-0"></span></th>
+                <th onclick="sortTable(1)">Resume ID <span class="sort-arrow" id="arrow-1"></span></th>
+                <th onclick="sortTable(2)">Score <span class="sort-arrow" id="arrow-2"></span></th>
+                <th onclick="sortTable(3)">Submitted At <span class="sort-arrow" id="arrow-3"></span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if submissions %}
+                {% for s in submissions %}
+                <tr>
+                    <td>{{ s.team_name }}</td>
+                    <td>{{ s.resume_id }}</td>
+                    <td>{{ s.score }}</td>
+                    <td>{{ s.submitted_at }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr><td colspan="4" class="empty-msg">No submissions yet.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+    <p class="refresh-note">Auto-refreshes every 30 seconds</p>
+
+    <script>
+        // Auto-refresh
+        setTimeout(() => location.reload(), 30000);
+
+        // Sort state
+        let currentCol = -1;
+        let ascending = true;
+
+        function sortTable(colIndex) {
+            const table = document.getElementById("leaderboard");
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+
+            // Skip if only the empty message row
+            if (rows.length === 1 && rows[0].cells[0].colSpan > 1) return;
+
+            if (currentCol === colIndex) {
+                ascending = !ascending;
+            } else {
+                ascending = true;
+                currentCol = colIndex;
+            }
+
+            rows.sort((a, b) => {
+                let aVal = a.cells[colIndex].textContent.trim();
+                let bVal = b.cells[colIndex].textContent.trim();
+
+                // Numeric sort for score column
+                if (colIndex === 2) {
+                    return ascending
+                        ? parseFloat(aVal) - parseFloat(bVal)
+                        : parseFloat(bVal) - parseFloat(aVal);
+                }
+
+                // String sort for other columns
+                return ascending
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            });
+
+            // Update arrows
+            for (let i = 0; i < 4; i++) {
+                document.getElementById("arrow-" + i).textContent = "";
+            }
+            document.getElementById("arrow-" + colIndex).textContent = ascending ? "\u25b2" : "\u25bc";
+
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function resetLeaderboard() {
+            const key = prompt("Enter API key to reset the leaderboard:");
+            if (!key) return;
+
+            fetch("/api/reset", {
+                method: "POST",
+                headers: { "X-API-Key": key }
+            })
+            .then(resp => {
+                if (!resp.ok) throw new Error("Invalid API key");
+                location.reload();
+            })
+            .catch(err => alert(err.message));
+        }
+    </script>
+</body>
+</html>

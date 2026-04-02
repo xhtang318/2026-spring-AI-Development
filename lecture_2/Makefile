@@ -1,6 +1,6 @@
 IMAGE_NAME=lecture_2
 
-.PHONY: build notebook interactive
+.PHONY: build notebook interactive leaderboard
 
 # Common Docker run flags
 COMMON_DOCKER_FLAGS= \
@@ -21,4 +21,10 @@ notebook: build
 	$(IMAGE_NAME) \
 	uv run jupyter notebook --allow-root --no-browser \
 	--port 8888 --ip=0.0.0.0
+
+leaderboard: build
+	docker run -it -p 8000:8000 \
+	$(COMMON_DOCKER_FLAGS) \
+	$(IMAGE_NAME) \
+	uv run uvicorn leaderboard.app:app --host 0.0.0.0 --port 8000
 
