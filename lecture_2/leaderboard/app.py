@@ -2,6 +2,7 @@
 
 import csv
 import os
+import random
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -48,10 +49,36 @@ class SubmissionRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def leaderboard_page(request: Request):
     submissions = get_all_submissions(DEFAULT_DB_PATH)
+
+    # Pivot: rows=resume_ids, cols=team_names, cells={score, submitted_at}
+    team_names: list[str] = []
+    resume_ids: list[str] = []
+    seen_teams: set[str] = set()
+    seen_resumes: set[str] = set()
+    grid: dict[tuple[str, str], dict] = {}
+
+    for s in submissions:
+        tid, rid = s["team_name"], s["resume_id"]
+        if tid not in seen_teams:
+            team_names.append(tid)
+            seen_teams.add(tid)
+        if rid not in seen_resumes:
+            resume_ids.append(rid)
+            seen_resumes.add(rid)
+        grid[(rid, tid)] = {"score": s["score"], "submitted_at": s["submitted_at"]}
+
+    team_names.sort()
+    resume_ids.sort()
+
     return templates.TemplateResponse(
         request=request,
         name="leaderboard.html",
-        context={"submissions": submissions, "api_key": API_KEY},
+        context={
+            "team_names": team_names,
+            "resume_ids": resume_ids,
+            "grid": grid,
+            "api_key": API_KEY,
+        },
     )
 
 
@@ -91,3 +118,20 @@ async def get_submissions():
 @app.get("/api/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.post("/api/seed")
+async def seed_test_data(x_api_key: str | None = Header(default=None)):
+    """Seed the database with test data: 15 teams x 10 resume IDs."""
+    _check_api_key(x_api_key)
+    teams = [f"Team {name}" for name in [
+        "Alpha", "Beta", "Gamma", "Delta", "Epsilon",
+        "Zeta", "Eta", "Theta", "Iota", "Kappa",
+        "Lambda", "Mu", "Nu", "Xi", "Omicron",
+    ]]
+    resume_ids = sorted(random.sample(list(VALID_RESUME_IDS), 10)) if len(VALID_RESUME_IDS) >= 10 else [str(i) for i in range(10)]
+    for team in teams:
+        for rid in resume_ids:
+            score = round(random.uniform(30, 99), 1)
+            add_submission(DEFAULT_DB_PATH, team, rid, score)
+    return {"status": "ok", "teams": len(teams), "resumes": len(resume_ids)}

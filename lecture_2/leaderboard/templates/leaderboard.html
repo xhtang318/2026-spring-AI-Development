@@ -31,32 +31,53 @@
             font-size: 0.9rem;
         }
         .controls button:hover { background: #c0392b; }
-        table {
-            width: 100%;
-            max-width: 900px;
+        .table-wrapper {
+            max-width: 100%;
+            overflow-x: auto;
             margin: 0 auto;
+        }
+        table {
             border-collapse: collapse;
             background: white;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-width: 100%;
         }
         th, td {
-            padding: 0.75rem 1rem;
-            text-align: left;
+            padding: 0.6rem 0.8rem;
+            text-align: center;
+            white-space: nowrap;
         }
         th {
             background: #1a1a2e;
             color: white;
-            cursor: pointer;
-            user-select: none;
-            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
-        th:hover { background: #16213e; }
-        th .sort-arrow { margin-left: 0.3rem; font-size: 0.7rem; }
-        tr:nth-child(even) { background: #f8f9fa; }
-        tr:hover { background: #e8f0fe; }
-        td { border-bottom: 1px solid #eee; }
+        th.resume-header {
+            background: #1a1a2e;
+            text-align: left;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+        }
+        td.resume-id {
+            background: #1a1a2e;
+            color: white;
+            font-weight: 600;
+            text-align: left;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+        }
+        tr:nth-child(even) td:not(.resume-id) { background: #f8f9fa; }
+        tr:hover td:not(.resume-id) { background: #e8f0fe; }
+        td { border-bottom: 1px solid #eee; border-right: 1px solid #eee; }
+        .score { font-size: 1.1rem; font-weight: 600; color: #1a1a2e; }
+        .timestamp { font-size: 0.7rem; color: #999; margin-top: 2px; }
+        .empty-cell { color: #ccc; font-style: italic; font-size: 0.85rem; }
         .empty-msg {
             text-align: center;
             padding: 2rem;
@@ -76,81 +97,46 @@
     <div class="controls">
         <button onclick="resetLeaderboard()">Reset Leaderboard</button>
     </div>
-    <table id="leaderboard">
-        <thead>
-            <tr>
-                <th onclick="sortTable(0)">Team Name <span class="sort-arrow" id="arrow-0"></span></th>
-                <th onclick="sortTable(1)">Resume ID <span class="sort-arrow" id="arrow-1"></span></th>
-                <th onclick="sortTable(2)">Score <span class="sort-arrow" id="arrow-2"></span></th>
-                <th onclick="sortTable(3)">Submitted At <span class="sort-arrow" id="arrow-3"></span></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if submissions %}
-                {% for s in submissions %}
+
+    {% if team_names %}
+    <div class="table-wrapper">
+        <table id="leaderboard">
+            <thead>
                 <tr>
-                    <td>{{ s.team_name }}</td>
-                    <td>{{ s.resume_id }}</td>
-                    <td>{{ s.score }}</td>
-                    <td>{{ s.submitted_at }}</td>
+                    <th class="resume-header">Resume ID</th>
+                    {% for team in team_names %}
+                    <th>{{ team }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for rid in resume_ids %}
+                <tr>
+                    <td class="resume-id">{{ rid }}</td>
+                    {% for team in team_names %}
+                    <td>
+                        {% set key = (rid, team) %}
+                        {% if key in grid %}
+                        <div class="score">{{ grid[key].score }}</div>
+                        <div class="timestamp">{{ grid[key].submitted_at }}</div>
+                        {% else %}
+                        <span class="empty-cell">-</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
                 </tr>
                 {% endfor %}
-            {% else %}
-            <tr><td colspan="4" class="empty-msg">No submissions yet.</td></tr>
-            {% endif %}
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-msg">No submissions yet.</p>
+    {% endif %}
+
     <p class="refresh-note">Auto-refreshes every 10 seconds</p>
 
     <script>
-        // Auto-refresh
         setTimeout(() => location.reload(), 10000);
-
-        // Sort state
-        let currentCol = -1;
-        let ascending = true;
-
-        function sortTable(colIndex) {
-            const table = document.getElementById("leaderboard");
-            const tbody = table.tBodies[0];
-            const rows = Array.from(tbody.rows);
-
-            // Skip if only the empty message row
-            if (rows.length === 1 && rows[0].cells[0].colSpan > 1) return;
-
-            if (currentCol === colIndex) {
-                ascending = !ascending;
-            } else {
-                ascending = true;
-                currentCol = colIndex;
-            }
-
-            rows.sort((a, b) => {
-                let aVal = a.cells[colIndex].textContent.trim();
-                let bVal = b.cells[colIndex].textContent.trim();
-
-                // Numeric sort for score column
-                if (colIndex === 2) {
-                    return ascending
-                        ? parseFloat(aVal) - parseFloat(bVal)
-                        : parseFloat(bVal) - parseFloat(aVal);
-                }
-
-                // String sort for other columns
-                return ascending
-                    ? aVal.localeCompare(bVal)
-                    : bVal.localeCompare(aVal);
-            });
-
-            // Update arrows
-            for (let i = 0; i < 4; i++) {
-                document.getElementById("arrow-" + i).textContent = "";
-            }
-            document.getElementById("arrow-" + colIndex).textContent = ascending ? "\u25b2" : "\u25bc";
-
-            // Re-append sorted rows
-            rows.forEach(row => tbody.appendChild(row));
-        }
 
         function resetLeaderboard() {
             const password = prompt("Enter password to reset the leaderboard:");
