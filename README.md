@@ -13,7 +13,7 @@ This repository contains materials for a four-part workshop on AI development fo
 - **Slides**: [lecture_1.pdf](lecture_1/slides/lecture_1.pdf)
 
 
-- **Readings for lecture 2**:
+#### Readings for lecture 2:
   - **AI Coding**
     - [A survey of AI Coding](https://paulgp.com/ai-coding/2025/12/02/ai-coding.html)
   - **Context Engineering** 
