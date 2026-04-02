@@ -84,3 +84,8 @@ async def reset_leaderboard(x_api_key: str | None = Header(default=None)):
 @app.get("/api/submissions")
 async def get_submissions():
     return get_all_submissions(DEFAULT_DB_PATH)
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "healthy"}
