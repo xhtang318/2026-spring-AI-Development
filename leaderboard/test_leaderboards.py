@@ -262,11 +262,12 @@ def test_lecture3():
         assert "Gold Mean" in r.text
         print(f"  [PASS] HTML page renders ({len(r.text)} chars)")
 
-        # Root redirects to lecture3
-        r = client.get("/", follow_redirects=False)
-        assert r.status_code == 307
-        assert r.headers["location"] == "/lecture3"
-        print(f"  [PASS] Root redirects to /lecture3")
+        # Root shows lecture picker
+        r = client.get("/")
+        assert r.status_code == 200
+        assert "/lecture2" in r.text
+        assert "/lecture3" in r.text
+        print(f"  [PASS] Root shows lecture picker page")
 
         # Cleanup
         r = client.post("/lecture3/api/reset", headers=HEADERS)

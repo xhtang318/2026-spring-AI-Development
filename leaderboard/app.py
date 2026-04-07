@@ -7,7 +7,7 @@ import random
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
@@ -76,9 +76,53 @@ def _check_api_key(x_api_key: str | None):
 # ---------------------------------------------------------------------------
 
 
-@app.get("/", response_class=RedirectResponse)
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    return RedirectResponse(url="/lecture3")
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Development Leaderboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container { text-align: center; }
+        h1 { margin-bottom: 2rem; color: #1a1a2e; }
+        .links { display: flex; gap: 2rem; justify-content: center; }
+        a {
+            display: block;
+            padding: 2rem 3rem;
+            background: #1a1a2e;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        a:hover { background: #16213e; }
+        .desc { margin-top: 0.5rem; font-size: 0.85rem; color: #aaa; font-weight: 400; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Development Leaderboard</h1>
+        <div class="links">
+            <a href="/lecture2">Lecture 2<div class="desc">Resume Scoring</div></a>
+            <a href="/lecture3">Lecture 3<div class="desc">Context Engineering</div></a>
+        </div>
+    </div>
+</body>
+</html>"""
 
 
 # ============================= LECTURE 2 ====================================
