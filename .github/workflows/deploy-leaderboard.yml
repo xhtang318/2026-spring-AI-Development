@@ -23,4 +23,4 @@ jobs:
             make -C leaderboard docker-down
             make -C leaderboard docker-up
             sleep 2
-            curl -sf http://localhost/ > /dev/null && echo "Leaderboard is running" || echo "WARNING: Leaderboard failed to start"
+            curl -sf http://localhost/lecture2/api/health > /dev/null && curl -sf http://localhost/lecture3/api/health > /dev/null && echo "Leaderboard is running" || echo "WARNING: Leaderboard failed to start"
