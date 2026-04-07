@@ -68,6 +68,22 @@ def analyze_resume(
     """
     schema = output_schema.model_json_schema()
 
+    # Strip keys that OpenRouter's strict json_schema mode doesn't accept
+    def _clean_schema(obj):
+        if isinstance(obj, dict):
+            return {
+                k: _clean_schema(v)
+                for k, v in obj.items()
+                if k not in ("title", "minimum", "maximum", "exclusiveMinimum",
+                             "exclusiveMaximum", "default")
+            }
+        if isinstance(obj, list):
+            return [_clean_schema(item) for item in obj]
+        return obj
+
+    schema = _clean_schema(schema)
+    schema["additionalProperties"] = False
+
     full_prompt = f"""{prompt}
 
 Resume:
@@ -86,7 +102,7 @@ Resume:
         "response_format": {
             "type": "json_schema",
             "json_schema": {
-                "name": schema.get("title", "response"),
+                "name": output_schema.__name__,
                 "strict": True,
                 "schema": schema,
             },
@@ -133,8 +149,8 @@ def submit_score(
     team_name: str,
     resume_id: str,
     score: float,
-    api_url: str = "http://ai-leaderboard.site",
-    api_key: str = "lecture2-secret-key",
+    api_url: str = "http://ai-leaderboard.site/lecture2",
+    api_key: str = "leaderboard-api-key",
 ) -> dict:
     """
     Submit a resume score to the leaderboard.
@@ -162,8 +178,8 @@ def submit_score(
 def delete_score(
     team_name: str,
     resume_id: str,
-    api_url: str = "http://ai-leaderboard.site",
-    api_key: str = "lecture2-secret-key",
+    api_url: str = "http://ai-leaderboard.site/lecture2",
+    api_key: str = "leaderboard-api-key",
 ) -> dict:
     """
     Delete a single submission from the leaderboard.
@@ -190,8 +206,8 @@ def delete_score(
 
 def delete_team(
     team_name: str,
-    api_url: str = "http://ai-leaderboard.site",
-    api_key: str = "lecture2-secret-key",
+    api_url: str = "http://ai-leaderboard.site/lecture2",
+    api_key: str = "leaderboard-api-key",
 ) -> dict:
     """
     Delete all submissions for a team from the leaderboard.
