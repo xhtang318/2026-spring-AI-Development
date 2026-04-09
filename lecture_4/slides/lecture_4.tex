@@ -119,6 +119,79 @@ Wild (random) & 10, 15, 15, 15 & 13.75 \\
 \end{itemize}
 \end{frame}
 
+\begin{frame}{Reading Takeaway: Start Simple}
+\textbf{Anthropic's \#1 finding}: The most successful agent deployments use simple, composable patterns --- not fancy frameworks.
+\vspace{0.3cm}
+
+\textbf{Their recommended progression}:
+\begin{enumerate}
+    \item Start with a single, well-engineered LLM call
+    \item Add retrieval and structured output
+    \item Only then consider multi-step agents
+\end{enumerate}
+\vspace{0.3cm}
+
+\textbf{Sound familiar?}
+\begin{itemize}
+    \item Lecture 2: single prompt $\rightarrow$ score
+    \item Lecture 3: decomposition, citations, few-shot
+    \item Lecture 4 (today): agent loop with tools
+\end{itemize}
+\vspace{0.3cm}
+
+You've been following best practice all along. Most real-world problems \textbf{don't need agents} --- a good prompt is enough.
+\end{frame}
+
+\begin{frame}{Reading Takeaway: Tool Design $>$ Prompt Design}
+\textbf{Anthropic spent more time optimizing tools than prompts} on their coding agent.
+\vspace{0.3cm}
+
+Why? Because tools are the \textbf{interface} the model uses to act. Bad tool design $\rightarrow$ bad decisions.
+\vspace{0.3cm}
+
+\textbf{What makes a good tool?}
+\begin{itemize}
+    \item \textbf{Clear descriptions} --- would a new employee understand what this tool does?
+    \item \textbf{Examples} in the tool description (edge cases, expected formats)
+    \item \textbf{Obvious parameters} --- don't make the model guess
+    \item \textbf{Error-proof design} --- when relative file paths caused bugs, they switched to absolute paths
+\end{itemize}
+\vspace{0.3cm}
+
+\textbf{Lesson}: Treat tool descriptions like you treat prompts --- iterate, test, improve.
+\end{frame}
+
+\begin{frame}{Reading Takeaway: Ground Truth From the Environment}
+\textbf{What makes agents different from a chain of prompts?}
+\vspace{0.3cm}
+
+Agents get \textbf{real information back} from tools that they didn't have before.
+\vspace{0.3cm}
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={rectangle, draw, thick, minimum width=2.8cm, minimum height=1cm, text centered, align=center, font=\small},
+  arrow/.style={->, thick, >=Stealth}
+]
+  \node[box, fill=blue!15] (call) at (0,0) {Agent calls\\score\_resume};
+  \node[box, fill=green!15] (result) at (5,0) {Gets back:\\``Score: 42/100''};
+  \node[box, fill=orange!15] (decide) at (10,0) {Now knows:\\send rejection};
+  \draw[arrow] (call) -- (result);
+  \draw[arrow] (result) -- (decide);
+\end{tikzpicture}
+\end{center}
+\vspace{0.3cm}
+
+\begin{itemize}
+    \item The agent \textbf{couldn't decide} on turn 1 --- it needed the score first
+    \item The tool result \textbf{changed what happened next}
+    \item This is why the loop exists: each step depends on what came before
+\end{itemize}
+\vspace{0.2cm}
+
+Without this feedback, you just have a checklist --- not an agent.
+\end{frame}
+
 \section{AI Agents}
 
 \begin{frame}{What is an AI Agent?}
