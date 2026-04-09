@@ -1,0 +1,136 @@
+Score this resume against the job requirements below. Return a JSON object with exactly two fields: "score" (integer 0-100) and "reasoning" (1-3 sentences).
+
+---
+
+JOB REQUIREMENTS:
+## About the Role
+
+We are seeking an experienced Full-Stack Software Engineer to join our growing engineering team. The ideal candidate will have a strong background in both frontend and backend development, with expertise in .NET technologies, modern web frameworks, and cloud infrastructure. You will work on building and maintaining enterprise applications that serve thousands of users while collaborating with cross-functional teams in an Agile environment.
+
+## Key Responsibilities
+
+- Design, develop, and maintain full-stack web applications using .NET/C# backend and modern JavaScript frameworks
+- Build and optimize RESTful APIs for internal and external consumption
+- Work with SQL databases to design schemas, write efficient queries, and optimize performance
+- Collaborate with product managers and designers to translate requirements into technical solutions
+- Deploy and maintain applications on AWS cloud infrastructure
+- Participate in code reviews and contribute to technical documentation
+- Mentor junior developers and contribute to team knowledge sharing
+- Work in an Agile/Scrum environment with regular sprints and standups
+
+## Required Qualifications
+
+### Technical Skills
+- **Backend Development:**
+  - 5+ years of experience with C# and .NET Framework/.NET Core
+  - Strong proficiency in ASP.NET, ASP.NET MVC, or Web API
+  - Experience with Entity Framework, ADO.NET, or similar ORMs
+
+- **Frontend Development:**
+  - Proficiency in JavaScript (ES6+), HTML5, and CSS3
+  - Experience with at least one modern framework (React, Angular, or Vue)
+  - Understanding of responsive design principles
+
+- **Database:**
+  - Strong SQL skills (Microsoft SQL Server, MySQL, or PostgreSQL)
+  - Experience designing database schemas and writing stored procedures
+  - Understanding of database optimization and indexing strategies
+
+- **Version Control & DevOps:**
+  - Proficient with Git for version control
+  - Experience with CI/CD pipelines (Jenkins, Azure DevOps, or similar)
+  - Familiarity with containerization (Docker) is a plus
+
+### Professional Skills
+- 5-10 years of professional software development experience
+- Bachelor's degree in Computer Science, Information Technology, or related field (or equivalent experience)
+- Strong problem-solving and analytical skills
+- Excellent communication and collaboration abilities
+- Experience working in Agile/Scrum development environments
+
+## Preferred Qualifications
+
+- **Cloud Experience:**
+  - AWS experience (EC2, S3, Lambda, RDS)
+  - AWS certification (Solutions Architect or Developer) is a plus
+  - Experience with Azure or Google Cloud Platform
+
+- **Additional Technologies:**
+  - Experience with microservices architecture
+  - Knowledge of Linux/Unix systems administration
+  - Familiarity with Python or Java
+  - Experience with message queues (RabbitMQ, Kafka) or Redis
+
+- **Security & Best Practices:**
+  - Understanding of web security principles (OWASP Top 10)
+  - Experience with authentication systems (OAuth, JWT, Active Directory)
+  - Knowledge of API design best practices (RESTful principles)
+
+- **Tools & Frameworks:**
+  - Experience with project management tools (JIRA, Azure DevOps)
+  - Familiarity with testing frameworks (xUnit, NUnit, Jest)
+  - Knowledge of ORM tools and migration strategies
+
+
+**Note to Recruiters:** Please do not contact us regarding this position. We work directly with candidates only.
+
+**Application Deadline:** Applications reviewed on a rolling basis
+
+**Job ID:** SWE-FS-2026-001
+
+
+---
+
+SCORING RULES — follow these exactly:
+
+**STEP 1: Check for CORE DISQUALIFIERS (missing any = heavy penalty)**
+- No C#/.NET experience → cap score at 55
+- No SQL/database experience → cap score at 60
+- No backend development experience at all → cap score at 60
+- Less than 3 years total experience → cap score at 75
+
+**STEP 2: Assign a BASE SCORE using these anchors**
+
+0-30 = Completely unrelated field (e.g., nurse, teacher, accountant with no tech skills)
+31-49 = Tech background but wrong domain (e.g., embedded systems, data science only, mobile-only with no web)
+50-69 = Partial tech match but missing multiple core requirements (e.g., backend dev but wrong stack like Java/Python only, no .NET, no SQL)
+70-79 = Significant gaps in core requirements. Use this range for:
+  - Junior developer (1-3 years experience) who otherwise matches the stack
+  - Frontend-only specialist (5+ years JS/React/Angular) with NO backend or .NET experience
+  - Candidate with .NET experience but only 2-3 years and missing SQL or cloud
+80-84 = Meets most requirements but has notable gaps (e.g., strong .NET/SQL but no frontend framework, OR strong full-stack but only 4 years experience)
+85-92 = Strong match: 5+ years, has C#/.NET, SQL, at least one JS framework, Git/CI-CD. May lack AWS or microservices.
+93-100 = Excellent match: 8+ years, C#/.NET, SQL Server, React or Angular, AWS, CI-CD, Agile. Matches nearly all required AND preferred qualifications.
+
+**STEP 3: Apply BONUSES (only if base score is 50+)**
+- AWS experience (EC2, S3, Lambda, RDS): +3
+- Microservices architecture experience: +2
+- Security knowledge (OAuth, JWT, OWASP): +2
+- Testing frameworks (xUnit, NUnit, Jest): +1
+- Docker/containerization: +1
+- Do not exceed 100
+
+**STEP 4: Apply PENALTIES**
+- Claims skills but no evidence of use in real projects: -5
+- Only 3-4 years experience (below 5-year requirement): -5
+- No mention of Agile/Scrum: -2
+- Frontend-only with zero backend evidence: -10 (in addition to Step 1 cap)
+
+---
+
+SCORING EXAMPLES to calibrate your output:
+
+- Resume: 9 years C#/.NET, React, SQL Server, AWS, CI-CD, Agile → Score: 93-97
+- Resume: 6 years C#/.NET, Angular, MySQL, Git, no AWS → Score: 85-89
+- Resume: 10 years React/Angular/Vue frontend only, no .NET, no SQL → Score: 70-74
+- Resume: 1.5 years experience, some C# and SQL, learning React → Score: 70-74
+- Resume: 8 years Java/Spring backend, no .NET, strong SQL → Score: 50-58
+- Resume: 5 years Python/Django, no .NET, no SQL Server → Score: 45-53
+- Resume: Registered nurse with no software development experience → Score: 5-15
+
+---
+
+BE STRICT: Do not inflate scores. A frontend-only developer, no matter how experienced, must score 70-79 because they lack backend/.NET skills. A junior developer under 3 years must score 70-79 even with the right stack. Only candidates with 5+ years AND C#/.NET AND SQL AND a JS framework should score 85+.
+
+Return ONLY valid JSON. Example format:
+{"score": 72, "reasoning": "Candidate has 10 years of frontend experience with React and Angular but shows no evidence of C#/.NET or SQL skills, which are core requirements for this role. Strong JS skills prevent a lower score, but the complete absence of backend development caps this in the 70-79 range."}

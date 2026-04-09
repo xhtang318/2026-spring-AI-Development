@@ -7,6 +7,8 @@ import csv
 
 from pydantic import BaseModel
 
+LEADERBOARD_BASE_URL = "http://ai-leaderboard.site"
+
 
 def load_resumes(csv_path: str) -> Dict[str, Dict[str, str]]:
     """Load all resumes from CSV into a dictionary keyed by ID."""
@@ -48,7 +50,7 @@ def analyze_resume(
         temperature: Sampling temperature (default: 0.3 for consistency)
 
     Returns:
-        Dict with 'result' (parsed JSON), 'error' (if any), and 'usage' (token counts)
+        Dict with 'result' (parsed JSON), 'error' (if any), 'usage' (token counts), and 'cost'
     """
     schema = output_schema.model_json_schema()
 
@@ -140,11 +142,21 @@ def submit_score(
     team_name: str,
     resume_id: str,
     score: float,
+    lecture: int = 3,
     cost: float | None = None,
-    api_url: str = "http://ai-leaderboard.site/lecture3",
     api_key: str = "leaderboard-api-key",
 ) -> dict:
-    """Submit a resume score to the leaderboard."""
+    """Submit a resume score to the leaderboard.
+
+    Args:
+        team_name: Your team's name
+        resume_id: The resume ID being scored
+        score: Score from 0-100
+        lecture: Which lecture leaderboard to submit to (2, 3, or 4)
+        cost: Optional cost of the API call(s)
+        api_key: API key for authentication
+    """
+    api_url = f"{LEADERBOARD_BASE_URL}/lecture{lecture}"
     payload = {"team_name": team_name, "resume_id": str(resume_id), "score": score}
     if cost is not None:
         payload["cost"] = cost
@@ -152,6 +164,42 @@ def submit_score(
         resp = client.post(
             f"{api_url}/api/submit",
             json=payload,
+            headers={"X-API-Key": api_key},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+def delete_score(
+    team_name: str,
+    resume_id: str,
+    lecture: int = 3,
+    api_key: str = "leaderboard-api-key",
+) -> dict:
+    """Delete a single submission from the leaderboard."""
+    api_url = f"{LEADERBOARD_BASE_URL}/lecture{lecture}"
+    with httpx.Client(timeout=10) as client:
+        resp = client.request(
+            "DELETE",
+            f"{api_url}/api/submit",
+            json={"team_name": team_name, "resume_id": str(resume_id)},
+            headers={"X-API-Key": api_key},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+def delete_team(
+    team_name: str,
+    lecture: int = 3,
+    api_key: str = "leaderboard-api-key",
+) -> dict:
+    """Delete all submissions for a team from the leaderboard."""
+    api_url = f"{LEADERBOARD_BASE_URL}/lecture{lecture}"
+    with httpx.Client(timeout=10) as client:
+        resp = client.post(
+            f"{api_url}/api/delete_team",
+            json={"team_name": team_name},
             headers={"X-API-Key": api_key},
         )
         resp.raise_for_status()
