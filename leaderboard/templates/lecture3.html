@@ -65,7 +65,6 @@
         th {
             background: #1a1a2e;
             color: white;
-            cursor: pointer;
             user-select: none;
             position: sticky;
             top: 0;
@@ -87,7 +86,6 @@
             position: sticky;
             left: 0;
             z-index: 1;
-            cursor: pointer;
             user-select: none;
         }
         td.resume-id:hover { background: #16213e; }
@@ -114,6 +112,54 @@
             color: #888;
             font-size: 0.85rem;
         }
+        /* Gear dropdown */
+        .header-wrapper {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .gear-btn {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0;
+            line-height: 1;
+        }
+        .gear-btn:hover { color: #fff; }
+        .dropdown-anchor {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            min-width: 140px;
+            overflow: hidden;
+        }
+        .dropdown-menu.show { display: block; }
+        .dropdown-menu button {
+            display: block;
+            width: 100%;
+            padding: 0.5rem 0.8rem;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.82rem;
+            color: #333;
+        }
+        .dropdown-menu button:hover { background: #f0f0f0; }
+        .dropdown-menu button.danger { color: #e74c3c; }
+        .dropdown-menu button.danger:hover { background: #fdecea; }
     </style>
 </head>
 <body>
@@ -131,14 +177,38 @@
                 <tr>
                     <th class="resume-header">Resume ID</th>
                     {% for team in team_names %}
-                    <th onclick="sortByColumn({{ loop.index }})">{{ team }}</th>
+                    <th>
+                        <div class="header-wrapper">
+                            <span>{{ team }}</span>
+                            <div class="dropdown-anchor">
+                                <button class="gear-btn" onclick="toggleDropdown(event, 'col-dd-{{ loop.index }}')">&#9881;</button>
+                                <div id="col-dd-{{ loop.index }}" class="dropdown-menu">
+                                    <button onclick="sortByColumn({{ loop.index }}, 'asc')">Sort Ascending</button>
+                                    <button onclick="sortByColumn({{ loop.index }}, 'desc')">Sort Descending</button>
+                                    <button class="danger" onclick="deleteTeam('{{ team }}')">Delete Column</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody>
                 {% for rid in resume_ids %}
                 <tr>
-                    <td class="resume-id {% if rid.startswith('g') %}gold{% elif rid.startswith('s') %}silver{% endif %}" onclick="sortByRow(this.parentElement)">{{ rid }}</td>
+                    <td class="resume-id {% if rid.startswith('g') %}gold{% elif rid.startswith('s') %}silver{% endif %}">
+                        <div class="header-wrapper">
+                            <span>{{ rid }}</span>
+                            <div class="dropdown-anchor">
+                                <button class="gear-btn" onclick="toggleDropdown(event, 'row-dd-{{ loop.index }}')">&#9881;</button>
+                                <div id="row-dd-{{ loop.index }}" class="dropdown-menu">
+                                    <button onclick="sortByRow({{ loop.index - 1 }}, 'asc')">Sort Ascending</button>
+                                    <button onclick="sortByRow({{ loop.index - 1 }}, 'desc')">Sort Descending</button>
+                                    <button class="danger" onclick="deleteResume('{{ rid }}')">Delete Row</button>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
                     {% for team in team_names %}
                     <td>
                         {% set key = (rid, team) %}
@@ -165,36 +235,46 @@
     <script>
         setTimeout(() => location.reload(), 10000);
 
-        let colSortState = {};
-        let rowSortState = {};
+        const API_KEY = "{{ api_key }}";
+        const LECTURE = "lecture3";
 
+        /* ---- Dropdown toggle ---- */
+        function toggleDropdown(event, id) {
+            event.stopPropagation();
+            document.querySelectorAll('.dropdown-menu.show').forEach(el => {
+                if (el.id !== id) el.classList.remove('show');
+            });
+            document.getElementById(id).classList.toggle('show');
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown-menu.show').forEach(el => el.classList.remove('show'));
+        });
+
+        /* ---- Sorting ---- */
         function getScore(cell) {
             const scoreEl = cell.querySelector('.score');
             return scoreEl ? parseFloat(scoreEl.textContent) : -1;
         }
 
-        function sortByColumn(colIndex) {
+        function sortByColumn(colIndex, direction) {
             const tbody = document.querySelector('#leaderboard tbody');
             const rows = Array.from(tbody.rows);
-            const asc = colSortState[colIndex] === 'desc';
-            colSortState = {};
-            colSortState[colIndex] = asc ? 'asc' : 'desc';
-
+            const asc = direction === 'asc';
             rows.sort((a, b) => {
                 const aVal = getScore(a.cells[colIndex]);
                 const bVal = getScore(b.cells[colIndex]);
                 return asc ? aVal - bVal : bVal - aVal;
             });
             rows.forEach(r => tbody.appendChild(r));
+            closeDropdowns();
         }
 
-        function sortByRow(tr) {
+        function sortByRow(rowIndex, direction) {
             const table = document.getElementById('leaderboard');
             const thead = table.tHead.rows[0];
-            const rowIndex = tr.rowIndex;
-            const asc = rowSortState[rowIndex] === 'desc';
-            rowSortState = {};
-            rowSortState[rowIndex] = asc ? 'asc' : 'desc';
+            const tr = table.tBodies[0].rows[rowIndex];
+            const asc = direction === 'asc';
 
             const cols = [];
             for (let i = 1; i < tr.cells.length; i++) {
@@ -216,8 +296,33 @@
                 order.forEach(i => newRow.push(cells[i]));
                 newRow.forEach(c => row.appendChild(c));
             });
+            closeDropdowns();
         }
 
+        /* ---- Deleting ---- */
+        function deleteTeam(teamName) {
+            if (!confirm('Delete all submissions for team "' + teamName + '"?')) return;
+            fetch("/" + LECTURE + "/api/delete_team", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+                body: JSON.stringify({ team_name: teamName })
+            })
+            .then(resp => { if (!resp.ok) throw new Error("Delete failed"); location.reload(); })
+            .catch(err => alert(err.message));
+        }
+
+        function deleteResume(resumeId) {
+            if (!confirm('Delete all submissions for resume "' + resumeId + '"?')) return;
+            fetch("/" + LECTURE + "/api/delete_resume", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+                body: JSON.stringify({ resume_id: resumeId })
+            })
+            .then(resp => { if (!resp.ok) throw new Error("Delete failed"); location.reload(); })
+            .catch(err => alert(err.message));
+        }
+
+        /* ---- Reset ---- */
         function resetLeaderboard() {
             const password = prompt("Enter password to reset the leaderboard:");
             if (!password) return;
@@ -227,15 +332,19 @@
                 return;
             }
 
-            fetch("/lecture3/api/reset", {
+            fetch("/" + LECTURE + "/api/reset", {
                 method: "POST",
-                headers: { "X-API-Key": "{{ api_key }}" }
+                headers: { "X-API-Key": API_KEY }
             })
             .then(resp => {
                 if (!resp.ok) throw new Error("Reset failed");
                 location.reload();
             })
             .catch(err => alert(err.message));
+        }
+
+        function closeDropdowns() {
+            document.querySelectorAll('.dropdown-menu.show').forEach(el => el.classList.remove('show'));
         }
     </script>
 </body>

@@ -14,11 +14,16 @@ from pydantic import BaseModel
 from .database import (
     LECTURE2_DB_PATH,
     LECTURE3_DB_PATH,
+    LECTURE4_DB_PATH,
+    add_lecture4_submission,
     add_submission,
+    delete_resume_submissions,
     delete_submission,
     delete_team_submissions,
+    get_all_lecture4_submissions,
     get_all_submissions,
     init_db,
+    init_lecture4_db,
     reset_db,
 )
 
@@ -33,6 +38,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 # Valid resume IDs per lecture (populated on startup)
 LECTURE2_VALID_IDS: set[str] = set()
 LECTURE3_VALID_IDS: set[str] = set()
+LECTURE4_VALID_IDS: set[str] = set()
+LECTURE4_GOLD_IDS: set[str] = set()
+LECTURE4_SILVER_IDS: set[str] = set()
 
 # ---------------------------------------------------------------------------
 # Startup
@@ -59,6 +67,24 @@ def startup():
         with open(csv3, "r", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 LECTURE3_VALID_IDS.add(row["ID"])
+
+    # Lecture 4
+    init_lecture4_db(LECTURE4_DB_PATH)
+    csv4 = REPO_ROOT / "lecture_4" / "data" / "resumes_final.csv"
+    if csv4.exists():
+        with open(csv4, "r", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                LECTURE4_VALID_IDS.add(row["ID"])
+    csv4_gs = REPO_ROOT / "lecture_4" / "data" / "resumes_final_with_gold_silver.csv"
+    if csv4_gs.exists():
+        with open(csv4_gs, "r", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                LECTURE4_VALID_IDS.add(row["ID"])
+                rid = row["ID"]
+                if rid.startswith("g"):
+                    LECTURE4_GOLD_IDS.add(rid)
+                elif rid.startswith("s"):
+                    LECTURE4_SILVER_IDS.add(rid)
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +145,7 @@ async def root():
         <div class="links">
             <a href="/lecture2">Lecture 2<div class="desc">Resume Scoring</div></a>
             <a href="/lecture3">Lecture 3<div class="desc">Context Engineering</div></a>
+            <a href="/lecture4">Lecture 4<div class="desc">Agentic Systems</div></a>
         </div>
     </div>
 </body>
@@ -138,6 +165,10 @@ class L2SubmissionRequest(BaseModel):
 
 class L2DeleteSubmissionRequest(BaseModel):
     team_name: str
+    resume_id: str
+
+
+class L2DeleteResumeRequest(BaseModel):
     resume_id: str
 
 
@@ -213,6 +244,15 @@ async def lecture2_delete_team(
     return {"status": "ok", "team_name": body.team_name, "deleted": deleted}
 
 
+@lecture2_router.post("/api/delete_resume")
+async def lecture2_delete_resume(
+    body: L2DeleteResumeRequest, x_api_key: str | None = Header(default=None)
+):
+    _check_api_key(x_api_key)
+    deleted = delete_resume_submissions(LECTURE2_DB_PATH, body.resume_id)
+    return {"status": "ok", "resume_id": body.resume_id, "deleted": deleted}
+
+
 @lecture2_router.post("/api/reset")
 async def lecture2_reset(x_api_key: str | None = Header(default=None)):
     _check_api_key(x_api_key)
@@ -265,6 +305,10 @@ class L3SubmissionRequest(BaseModel):
 
 class L3DeleteSubmissionRequest(BaseModel):
     team_name: str
+    resume_id: str
+
+
+class L3DeleteResumeRequest(BaseModel):
     resume_id: str
 
 
@@ -429,6 +473,15 @@ async def lecture3_delete_team(
     return {"status": "ok", "team_name": body.team_name, "deleted": deleted}
 
 
+@lecture3_router.post("/api/delete_resume")
+async def lecture3_delete_resume(
+    body: L3DeleteResumeRequest, x_api_key: str | None = Header(default=None)
+):
+    _check_api_key(x_api_key)
+    deleted = delete_resume_submissions(LECTURE3_DB_PATH, body.resume_id)
+    return {"status": "ok", "resume_id": body.resume_id, "deleted": deleted}
+
+
 @lecture3_router.post("/api/reset")
 async def lecture3_reset(x_api_key: str | None = Header(default=None)):
     _check_api_key(x_api_key)
@@ -465,8 +518,176 @@ async def lecture3_metrics(team: str | None = None):
     return results
 
 
+# ============================= LECTURE 4 ====================================
+
+lecture4_router = APIRouter(prefix="/lecture4", tags=["lecture4"])
+
+VALID_OUTCOMES = {"INTERVIEW", "REJECT", "REVIEW"}
+
+
+class L4SubmissionRequest(BaseModel):
+    team_name: str
+    resume_id: str
+    outcome: str  # INTERVIEW, REJECT, or REVIEW
+    email_text: str
+    score: float | None = None
+    cost: float | None = None
+
+
+class L4DeleteSubmissionRequest(BaseModel):
+    team_name: str
+    resume_id: str
+
+
+class L4DeleteTeamRequest(BaseModel):
+    team_name: str
+
+
+class L4DeleteResumeRequest(BaseModel):
+    resume_id: str
+
+
+@lecture4_router.get("", response_class=HTMLResponse)
+async def lecture4_page(request: Request):
+    submissions = get_all_lecture4_submissions(LECTURE4_DB_PATH)
+
+    team_names: list[str] = []
+    resume_ids: list[str] = []
+    seen_teams: set[str] = set()
+    seen_resumes: set[str] = set()
+    grid: dict[tuple[str, str], dict] = {}
+
+    for s in submissions:
+        tid, rid = s["team_name"], s["resume_id"]
+        if tid not in seen_teams:
+            team_names.append(tid)
+            seen_teams.add(tid)
+        if rid not in seen_resumes:
+            resume_ids.append(rid)
+            seen_resumes.add(rid)
+        grid[(rid, tid)] = {
+            "outcome": s["outcome"],
+            "email_text": s["email_text"],
+            "score": s.get("score"),
+            "cost": s.get("cost"),
+            "submitted_at": s.get("submitted_at"),
+        }
+
+    team_names.sort()
+
+    # Sort resume IDs: gold first, then silver, then wild (alphabetic within tier)
+    def _rid_sort_key(rid: str) -> tuple[int, str]:
+        if rid.startswith("g"):
+            return (0, rid)
+        elif rid.startswith("s"):
+            return (1, rid)
+        else:
+            return (2, rid)
+
+    resume_ids.sort(key=_rid_sort_key)
+
+    # Build email_data for the slideshow view
+    email_data: dict[str, list[dict]] = {}
+    for (rid, tn), info in grid.items():
+        email_data.setdefault(rid, []).append({
+            "team_name": tn,
+            "outcome": info["outcome"],
+            "email_text": info["email_text"],
+            "score": info.get("score"),
+            "cost": info.get("cost"),
+            "submitted_at": info.get("submitted_at"),
+        })
+
+    return templates.TemplateResponse(
+        request=request,
+        name="lecture4.html",
+        context={
+            "team_names": team_names,
+            "resume_ids": resume_ids,
+            "grid": grid,
+            "api_key": API_KEY,
+            "email_data": email_data,
+        },
+    )
+
+
+@lecture4_router.post("/api/submit")
+async def lecture4_submit(
+    body: L4SubmissionRequest, x_api_key: str | None = Header(default=None)
+):
+    _check_api_key(x_api_key)
+    if LECTURE4_VALID_IDS and body.resume_id not in LECTURE4_VALID_IDS:
+        raise HTTPException(status_code=400, detail=f"Invalid resume_id: {body.resume_id}")
+    if body.outcome not in VALID_OUTCOMES:
+        raise HTTPException(status_code=400, detail=f"Invalid outcome: {body.outcome}. Must be one of: INTERVIEW, REJECT, REVIEW")
+    add_lecture4_submission(
+        LECTURE4_DB_PATH, body.team_name, body.resume_id, body.outcome,
+        body.email_text, score=body.score, cost=body.cost,
+    )
+    return {
+        "status": "ok",
+        "team_name": body.team_name,
+        "resume_id": body.resume_id,
+        "outcome": body.outcome,
+        "score": body.score,
+        "cost": body.cost,
+    }
+
+
+@lecture4_router.delete("/api/submit")
+async def lecture4_delete_submission(
+    body: L4DeleteSubmissionRequest, x_api_key: str | None = Header(default=None)
+):
+    _check_api_key(x_api_key)
+    deleted = delete_submission(LECTURE4_DB_PATH, body.team_name, body.resume_id)
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    return {
+        "status": "ok",
+        "team_name": body.team_name,
+        "resume_id": body.resume_id,
+        "deleted": deleted,
+    }
+
+
+@lecture4_router.post("/api/delete_team")
+async def lecture4_delete_team(
+    body: L4DeleteTeamRequest, x_api_key: str | None = Header(default=None)
+):
+    _check_api_key(x_api_key)
+    deleted = delete_team_submissions(LECTURE4_DB_PATH, body.team_name)
+    return {"status": "ok", "team_name": body.team_name, "deleted": deleted}
+
+
+@lecture4_router.post("/api/delete_resume")
+async def lecture4_delete_resume(
+    body: L4DeleteResumeRequest, x_api_key: str | None = Header(default=None)
+):
+    _check_api_key(x_api_key)
+    deleted = delete_resume_submissions(LECTURE4_DB_PATH, body.resume_id)
+    return {"status": "ok", "resume_id": body.resume_id, "deleted": deleted}
+
+
+@lecture4_router.post("/api/reset")
+async def lecture4_reset(x_api_key: str | None = Header(default=None)):
+    _check_api_key(x_api_key)
+    reset_db(LECTURE4_DB_PATH)
+    return {"status": "ok", "message": "Lecture 4 leaderboard reset"}
+
+
+@lecture4_router.get("/api/submissions")
+async def lecture4_submissions():
+    return get_all_lecture4_submissions(LECTURE4_DB_PATH)
+
+
+@lecture4_router.get("/api/health")
+async def lecture4_health():
+    return {"status": "healthy"}
+
+
 # ---------------------------------------------------------------------------
 # Mount routers
 # ---------------------------------------------------------------------------
 app.include_router(lecture2_router)
 app.include_router(lecture3_router)
+app.include_router(lecture4_router)

@@ -4,8 +4,11 @@ from typing import Any, Dict, Type
 import httpx
 import json
 import csv
+import time
 
 from pydantic import BaseModel
+
+LEADERBOARD_BASE_URL = "http://ai-leaderboard.site"
 
 
 def load_resumes(csv_path: str) -> Dict[str, Dict[str, str]]:
@@ -48,7 +51,7 @@ def analyze_resume(
         temperature: Sampling temperature (default: 0.3 for consistency)
 
     Returns:
-        Dict with 'result' (parsed JSON), 'error' (if any), and 'usage' (token counts)
+        Dict with 'result' (parsed JSON), 'error' (if any), 'usage' (token counts), and 'cost'
     """
     schema = output_schema.model_json_schema()
 
@@ -93,58 +96,94 @@ Resume:
         },
     }
 
-    try:
-        with httpx.Client(timeout=60) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+    max_retries = 3
+    backoff = 2  # seconds
 
-            if "error" in data:
+    for attempt in range(max_retries):
+        try:
+            with httpx.Client(timeout=60) as client:
+                resp = client.post(url, headers=headers, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+
+                if "error" in data:
+                    return {
+                        "result": None,
+                        "error": f"API error: {data['error']}",
+                        "usage": {},
+                        "cost": None,
+                    }
+
+                content = data["choices"][0]["message"]["content"]
+                if not content:
+                    return {
+                        "result": None,
+                        "error": f"Empty response from model. Raw response: {data}",
+                        "usage": data.get("usage", {}),
+                        "cost": None,
+                    }
+
+                parsed = output_schema.model_validate_json(content)
+
+                usage = data.get("usage", {})
+                cost = usage.get("cost")
+
                 return {
-                    "result": None,
-                    "error": f"API error: {data['error']}",
-                    "usage": {},
-                    "cost": None,
+                    "result": parsed.model_dump(),
+                    "error": None,
+                    "usage": usage,
+                    "cost": cost,
                 }
-
-            content = data["choices"][0]["message"]["content"]
-            if not content:
-                return {
-                    "result": None,
-                    "error": f"Empty response from model. Raw response: {data}",
-                    "usage": data.get("usage", {}),
-                    "cost": None,
-                }
-
-            parsed = output_schema.model_validate_json(content)
-
-            usage = data.get("usage", {})
-            cost = usage.get("cost")
-
+        except (httpx.HTTPStatusError, httpx.ConnectError, httpx.ReadTimeout) as e:
+            status = getattr(e, "response", None)
+            status_code = status.status_code if status is not None else None
+            if status_code in (502, 503, 429) or status_code is None:
+                if attempt < max_retries - 1:
+                    wait = backoff * (attempt + 1)
+                    print(f"  [retry {attempt + 1}/{max_retries}] {status_code or type(e).__name__}, waiting {wait}s...")
+                    time.sleep(wait)
+                    continue
             return {
-                "result": parsed.model_dump(),
-                "error": None,
-                "usage": usage,
-                "cost": cost,
+                "result": None,
+                "error": str(e),
+                "usage": {},
+                "cost": None,
             }
-    except Exception as e:
-        return {
-            "result": None,
-            "error": str(e),
-            "usage": {},
-            "cost": None,
-        }
+        except Exception as e:
+            return {
+                "result": None,
+                "error": str(e),
+                "usage": {},
+                "cost": None,
+            }
+
+    return {
+        "result": None,
+        "error": f"Failed after {max_retries} retries",
+        "usage": {},
+        "cost": None,
+    }
 
 
 def submit_score(
     team_name: str,
     resume_id: str,
     score: float,
+    lecture: int = 3,
     cost: float | None = None,
-    api_url: str = "http://ai-leaderboard.site/lecture3",
     api_key: str = "leaderboard-api-key",
 ) -> dict:
-    """Submit a resume score to the leaderboard."""
+    """Submit a resume score to the leaderboard.
+
+    Args:
+        team_name: Your team's name
+        resume_id: The resume ID being scored
+        score: Score from 0-100
+        lecture: Which lecture leaderboard to submit to (2, 3, or 4)
+        cost: Optional cost of the API call(s)
+        api_key: API key for authentication
+    """
+    api_url = f"{LEADERBOARD_BASE_URL}/lecture{lecture}"
     payload = {"team_name": team_name, "resume_id": str(resume_id), "score": score}
     if cost is not None:
         payload["cost"] = cost
@@ -152,6 +191,42 @@ def submit_score(
         resp = client.post(
             f"{api_url}/api/submit",
             json=payload,
+            headers={"X-API-Key": api_key},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+def delete_score(
+    team_name: str,
+    resume_id: str,
+    lecture: int = 3,
+    api_key: str = "leaderboard-api-key",
+) -> dict:
+    """Delete a single submission from the leaderboard."""
+    api_url = f"{LEADERBOARD_BASE_URL}/lecture{lecture}"
+    with httpx.Client(timeout=10) as client:
+        resp = client.request(
+            "DELETE",
+            f"{api_url}/api/submit",
+            json={"team_name": team_name, "resume_id": str(resume_id)},
+            headers={"X-API-Key": api_key},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+def delete_team(
+    team_name: str,
+    lecture: int = 3,
+    api_key: str = "leaderboard-api-key",
+) -> dict:
+    """Delete all submissions for a team from the leaderboard."""
+    api_url = f"{LEADERBOARD_BASE_URL}/lecture{lecture}"
+    with httpx.Client(timeout=10) as client:
+        resp = client.post(
+            f"{api_url}/api/delete_team",
+            json={"team_name": team_name},
             headers={"X-API-Key": api_key},
         )
         resp.raise_for_status()

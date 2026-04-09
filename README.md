@@ -59,13 +59,7 @@ This repository contains materials for a four-part workshop on AI development fo
 - **Hands-on**: Apply techniques to improve the resume scorer from Lecture 2
 
 - **Readings for lecture 4**:
-  - **Agents and Tools**
-    - [Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) - Anthropic's guide to agent patterns and best practices
-    - [AI Agents: A Practical Guide](https://simonwillison.net/2024/Oct/21/practical-ai-agents/) - Simon Willison's overview of agent architectures
-
-  - **Production Considerations**
-    - [Observability for AI Agents](https://www.honeycomb.io/blog/observability-ai-agents) - Monitoring and debugging agent systems
-    - [When Not to Use AI Agents](https://www.anthropic.com/research/when-not-to-use-agents) - Understanding agent limitations and anti-patterns
+  - [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents) - Anthropic's guide to agent patterns and best practices
 
 ### Lecture 4 (AI Agents & Tool Use)
 - **Topic**: Building an Application Routing Agent
@@ -102,13 +96,4 @@ From a lecture directory (e.g. `lecture_2/`):
 - `make build`
 - `make notebook` (starts Jupyter in Docker on port 8888)
 - `make interactive` (drops you into a bash shell in the container)
-
-
-## Improvements for next time
-
-- Additional Readings
-- First lecture needs a better set of organization and framework. Get to coding faster.
-- Do the resume reviewer only through out the entire system. Simplify problem (less resumes), better more actionalable To Do's e.g. have them report which resumes are best and worst. 
-- All of the slides need some fun improvements, graphics, better pacing, etc.
-- last lecture todo needs to be a bit longer on the to do. The notebook was the best out of all of them in terms of how it played out but the tasks needed some work.
 
